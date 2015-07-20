@@ -1,43 +1,17 @@
-// game state
-var gameState = {
-	mainMenu: true,
-	mainMenuPlay: false,
-	mainMenuLoaded: false,
-	playing: false,
-	startPlay: function() {
-		this.mainMenu = false;
-		this.MenuPlay = false;
-		this.mainMenuLoaded = false;
-		this.playing = true;
-		$(".main_menu_play").remove();
-	}
-};
-
 // Create the canvas
 var canvas = document.createElement("canvas");
 var ctx = canvas.getContext("2d");
-canvas.width = 805;
-canvas.height = 375;
-var container = document.getElementById("container");
-container.appendChild(canvas);
-container.style.width = canvas.width + 'px';
-container.style.height = canvas.height + 'px';
+canvas.width = 700;
+canvas.height = 700 * 3 / 4;
+document.body.appendChild(canvas);
 
-// main menu background image
-var mainMenuBGReady = false;
-var mainMenuBGImage = new Image();
-mainMenuBGImage.onload = function() {
-	mainMenuBGReady = true;
-};
-mainMenuBGImage.src = "./images/main_bg.jpg";
-
-// game background image
+// background image
 var bgReady = false;
 var bgImage = new Image();
 bgImage.onload = function () {
 	bgReady = true;
 };
-bgImage.src = "./images/water.jpg";
+bgImage.src = "./images/background.jpg";
 
 // player1 image
 var player1Load = 0;
@@ -69,7 +43,7 @@ for (var i = 0; i < 8; i++) {
 	};
 }
 
-//ball image
+//
 var ballReady = false;
 var ballImage = new Image();
 ballImage.onload = function() {
@@ -84,11 +58,7 @@ var player1 = {
 	count: 0,
 	phase: 0, // 0 ~ 7
 	x: 0,
-	y: 0,
-	w: 45,
-	h: 90,
-	id: 1,
-	hitCheck: playerhitCheck
+	y: 0
 };
 
 var player2 = {
@@ -97,24 +67,20 @@ var player2 = {
 	count: 0,
 	phase: 0, // 0 ~ 7
 	x: 0,
-	y: 0,
-	w: 45,
-	h: 90,
-	id: 2,
-	hitCheck: playerhitCheck
+	y: 0
 };
 
 var ball = {
 	width: 15,
 	height: 15,
-	x: canvas.width / 2,
-	y: canvas.height / 2,
+	x: 0,
+	y: 0,
 	x_last: 0,
 	y_last: 0,
 	speed: 256,
 	theta: Math.PI / 4.0, // degree
 	hitCheck: hitCheck,
-	adaptTheta: adaptTheta
+	//adaptTheta: adaptTheta
 };
 
 var keysDown = {};
@@ -155,13 +121,12 @@ var update = function (modifier) {
 		player1.x += player1.speed * modifier;
 		player1.isMoving = true;
 	}
-	player1.hitCheck();
-	
+
 	ball.x_last = ball.x;
 	ball.y_last = ball.y;
 	ball.x += ball.speed * Math.cos(ball.theta) * modifier;
 	ball.y += ball.speed * Math.sin(ball.theta) * modifier;
-	ball.adaptTheta();
+	//ball.adaptTheta();
 
 	if (13 in keysDown) { // Enter: reset
 		reset();
@@ -171,54 +136,27 @@ var update = function (modifier) {
 //
 function determinant(v1, v2, v3, v4)
 {
-	return (v1 * v4 - v2 * v3);
-}
-
-function determinant2(p1, p2, p0)
-{
-	return determinant(p1.x - p0.x, p2.x - p0.x, p1.y - p0.y, p2.y - p0.y);
-}
-
-function inregion(p1, p2, p0)
-{
-	return p0.x >= Math.min(p1.x, p2.x) && p0.x <= Math.max(p1.x, p2.x) 
-		&& p0.y >= Math.min(p1.y, p2.y) && p0.y <= Math.max(p1.y, p2.y);
+	return (v1 * v3 - v2 * v4);
 }
 
 function intersect(aa, bb, cc, dd)
 {
-	var d1 = determinant2(cc, dd, aa);
-	var d2 = determinant2(cc, dd, bb);
-	var d3 = determinant2(aa, bb, cc);
-	var d4 = determinant2(aa, bb, dd);
-	if (d1 * d2 < 0 && d3 * d4 < 0)
-		return true;
-	if (Math.abs(d1) < 1e-7 && inregion(cc, dd, aa))
-		return true;
-	if (Math.abs(d2) < 1e-7 && inregion(cc, dd, bb))
-		return true;
-	if (Math.abs(d3) < 1e-7 && inregion(aa, bb, cc))
-		return true;
-	if (Math.abs(d4) < 1e-7 && inregion(aa, bb, dd))
-		return true;
-	return false;
-}
-
-function playerhitCheck(){
-	//border
-	if (this.x < 0) this.x = 0;
-	if (this.x + this.w > canvas.width) this.x = canvas.width - this.w;
-	if (this.y < 0) this.y = 0;
-	if (this.y + this.h > canvas.height) this.y = canvas.height - this.h;
-	//region
-	if (this.id == 1){
-		if (this.x + this.w > canvas.width / 2)
-				this.x = canvas.width / 2 - this.w;
+	var delta = determinant(bb.x - aa.x, cc.x - dd.x, bb.y - aa.y, cc.y - dd.y);
+	if ( delta <= (1e-6) && delta >= -(1e-6) )  // delta=0，表示两线段重合或平行
+	{
+		return false;
 	}
-	if (this.id == 2){
-		if (this.x < canvas.width / 2)
-				this.x = canvas.width / 2;
+	var lambda = determinant(cc.x - aa.x, cc.x - dd.x, cc.y - aa.y, cc.y - dd.y) / delta;
+	if ( lambda > 1 || lambda < 0 )
+	{
+		return false;
 	}
+	var mu = determinant(bb.x - aa.x, cc.x - aa.x, bb.y - aa.y, cc.y - aa.y) / delta;
+	if ( mu > 1 || mu < 0 )
+	{
+		return false;
+	}
+	return true;
 }
 
 function hitCheck(p1, p2) {
@@ -237,16 +175,17 @@ function hitCheck(p1, p2) {
 function Point(x, y) {
 	return { x: x, y: y };
 }
-
+/*
 function adaptTheta() {
-	this.hitCheck(Point(0, 0), Point(0, canvas.height));
-	this.hitCheck(Point(0, 0), Point(canvas.width, 0));
+	this.hitCheck(Point(0, 0), Point(0, canvas.width));
+	this.hitCheck(Point(0, 0), Point(canvas.height, 0));
 	this.hitCheck(Point(canvas.width, canvas.height), Point(0, canvas.height));
 	this.hitCheck(Point(canvas.width, canvas.height), Point(canvas.width, 0));
 }
+*/
 
-// Draw everything when playing game
-var renderGame = function () {
+// Draw everything
+var render = function () {
 	if (bgReady) {
 		ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 	}
@@ -284,29 +223,6 @@ var renderGame = function () {
 	if (ballReady) {
 		ctx.drawImage(ballImage, ball.x, ball.y, ball.width, ball.height);
 	}
-	
-	if (19 in keysDown){
-		alert("Pause");
-	}
-};
-
-var renderMainMenu = function() {
-	if (mainMenuBGReady) {
-		if (!gameState.mainMenuPlay) {
-			var mainMenuPlayButton = document.createElement("img");
-			mainMenuPlayButton.className = "main_menu_play";
-			mainMenuPlayButton.src = "./images/main_play.png";
-			mainMenuPlayButton.onclick = function() {
-				gameState.startPlay();
-			};
-			container.appendChild(mainMenuPlayButton);
-			gameState.mainMenuPlay = true;
-		}
-		if (!gameState.mainMenuLoaded) {
-			gameState.mainMenuLoaded = true;
-			ctx.drawImage(mainMenuBGImage, 0, 0, canvas.width, canvas.height);
-		}
-	}
 };
 
 // The main game loop
@@ -314,14 +230,8 @@ var main = function () {
 	var now = Date.now();
 	var delta = now - then;
 
-	if (gameState.mainMenu) {
-		renderMainMenu();
-	}
-	if (gameState.playing) {
-
-		update(delta / 1000);
-		renderGame();
-	}
+	update(delta / 1000);
+	render();
 
 	then = now;
 
