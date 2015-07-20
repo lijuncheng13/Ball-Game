@@ -4,7 +4,6 @@ var gameState = {
 	mainMenuPlay: false,
 	mainMenuLoaded: false,
 	playing: false,
-	courtsType: 1,
 	startPlay: function() {
 		this.mainMenu = false;
 		this.MenuPlay = false;
@@ -32,23 +31,13 @@ mainMenuBGImage.onload = function() {
 };
 mainMenuBGImage.src = "./images/main_bg.jpg";
 
-// 4 kinds of courts
-var courts = ["air", "water", "fire", "soil"];
-
-// courts image
-var courtsLoad = 0;
-var courtsReady = false;
-var courtsImage = new Array();
-for (var i = 0; i < 4; i++) {
-	courtsImage.push(new Image());
-	courtsImage[i].src = "./images/" + courts[i] + ".jpg";
-	courtsImage[i].onload = function () {
-	courtsLoad++;
-	if (courtsLoad == 4) {
-		courtsReady = true;
-	}
-	};
-}
+// game background image
+var bgReady = false;
+var bgImage = new Image();
+bgImage.onload = function () {
+	bgReady = true;
+};
+bgImage.src = "./images/water.jpg";
 
 // player1 image
 var player1Load = 0;
@@ -99,9 +88,6 @@ var player1 = {
 	w: 45,
 	h: 90,
 	id: 1,
-	cd: 0,
-	score: 0,
-	locked: false,
 	hitCheck: playerhitCheck
 };
 
@@ -115,9 +101,6 @@ var player2 = {
 	w: 45,
 	h: 90,
 	id: 2,
-	cd: 0,
-	score: 0,
-	locked: true,
 	hitCheck: playerhitCheck
 };
 
@@ -134,56 +117,28 @@ var ball = {
 	adaptTheta: adaptTheta
 };
 
-var deltax = new Array(-1, 1, 0, 0);
-var deltay = new Array(0, 0, -1, 1);
-var Door = {
-	y0: canvas.height / 2 - 80, 
-	y1: canvas.height / 2 + 80
-};
-
 var keysDown = {};
-var gamePause = false;
-var gameStart = false;
 
 addEventListener("keydown", function (e) {
 	keysDown[e.keyCode] = true;
-	if (e.keyCode == 19){
-		gamePause = true;
-	} else if (gamePause){
-		gamePause = false;
-	}
 }, false);
 
 addEventListener("keyup", function (e) {
 	delete keysDown[e.keyCode];
 }, false);
 
-// Reset the game
+// Reset the game when the player catches a monster
 var reset = function () {
 	player1.x = canvas.width / 4;
 	player1.y = canvas.height / 2;
 
 	player2.x = canvas.width * 3 / 4;
 	player2.y = canvas.height / 2;
-	
-	ball.x = canvas.width / 2;
-	ball.y = canvas.height / 2;
 };
-
-//distance squared
-function dist2(x1, y1, x2, y2){
-	return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
-}
 
 // Update game objects
 var update = function (modifier) {
-	
-	if (gamePause){//pause
-		return;
-	}
-	
-	player1.isMoving = false;	
-	if (player1.cd <= 0){//Player can move
+	player1.isMoving = false;
 	if (38 in keysDown) { // Player walk up
 		player1.y -= player1.speed * modifier;
 		player1.isMoving = true;
@@ -200,58 +155,7 @@ var update = function (modifier) {
 		player1.x += player1.speed * modifier;
 		player1.isMoving = true;
 	}
-	} else {
-		player1.cd --;
-	}
 	player1.hitCheck();
-	
-	
-	player2.isMoving = false;
-	if (player2.cd <= 0){
-	if (!player2.locked){
-		if (87 in keysDown) { // Player walk up
-			player2.y -= player2.speed * modifier;
-			player2.isMoving = true;
-		}
-		if (83 in keysDown) { // Player walk down
-			player2.y += player2.speed * modifier;
-			player2.isMoving = true;
-		}
-		if (65 in keysDown) { // Player walk left
-			player2.x -= player2.speed * modifier;
-			player2.isMoving = true;
-		}
-		if (68 in keysDown) { // Player walk right
-			player2.x += player2.speed * modifier;
-			player2.isMoving = true;
-		}
-	}
-	else {//using AI
-		var tx = ball.x;
-		var ty = ball.y;
-		if (ball.x <= canvas.width / 2){//change target
-			tx = canvas.width * 4 / 5;
-			ty = canvas.height / 2;
-		}
-		var x0 = player2.x;
-		var y0 = player2.y;
-		var distMin = dist2(x0, y0, tx, ty);
-		for (var i = 0; i < 4; i ++){
-			var cx = x0 + player2.speed * modifier * deltax[i];
-			var cy = y0 + player2.speed * modifier * deltay[i];
-			var distNow = dist2(cx, cy, tx, ty);
-			if (distNow - distMin < -0.1){
-				distMin = distNow;
-				player2.x = cx;
-				player2.y = cy;
-				player2.isMoving = true;
-			}
-		}
-	}
-	} else {
-		player2.cd --;
-	}
-	player2.hitCheck();
 	
 	ball.x_last = ball.x;
 	ball.y_last = ball.y;
@@ -327,9 +231,7 @@ function hitCheck(p1, p2) {
 			this.y = 2 * p1.y - this.y;
 			this.theta = -this.theta;
 		}
-		return true;
 	}
-	return false;
 }
 
 function Point(x, y) {
@@ -337,65 +239,16 @@ function Point(x, y) {
 }
 
 function adaptTheta() {
-	
-	var e = 100;
-	
-	if (this.hitCheck(Point(0, -e), Point(0, canvas.height + e))){//left
-		if (this.y >= Door.y0 && this.y <= Door.y1){
-			player2.score ++; reset();
-			return;
-		}
-	}
-	if (this.hitCheck(Point(canvas.width, canvas.height + e), Point(canvas.width, -e))){//right
-		if (this.y >= Door.y0 && this.y <= Door.y1){
-			player1.score ++; reset();
-			return;
-		}
-	}
-	this.hitCheck(Point(-e, 0), Point(canvas.width + e, 0));
-	this.hitCheck(Point(canvas.width + e, canvas.height), Point(-e, canvas.height));
-	
-	var bx = this.x;
-	var by = this.y;
-	var bt = this.theta;
-	
-	//hit player1 front
-	for (var i = 0; i < 4; i ++){
-		var xi = player1.x + player1.w - i;
-		if (ball.x_last >= xi && ball.x <= xi && this.hitCheck(Point(xi, player1.y + player1.h), Point(xi, player1.y)))
-			return;
-	}
-	
-	if (this.hitCheck(Point(player1.x, player1.y), Point(player1.x + player1.w, player1.y))
-		|| this.hitCheck(Point(player1.x, player1.y), Point(player1.x, player1.y + player1.h))
-		|| this.hitCheck(Point(player1.x + player1.w, player1.y + player1.h), Point(player1.x, player1.y + player1.h))){
-			this.x = bx;
-			this.y = by;
-			this.theta = bt;
-			player1.cd = 100;
-	}
-	
-	//hit player2 front
-	for (var i = 0; i < 4; i ++){
-		var xi = player2.x + i;
-		if (ball.x_last <= xi && ball.x >= xi && this.hitCheck(Point(xi, player2.y + player2.h), Point(xi, player2.y)))
-			return;
-	}
-	if (this.hitCheck(Point(player2.x, player2.y), Point(player2.x + player2.w, player2.y))
-		|| this.hitCheck(Point(player2.x + player2.w, player2.y + player2.h), Point(player2.x + player2.w, player2.y))
-		|| this.hitCheck(Point(player2.x + player2.w, player2.y + player2.h), Point(player2.x, player2.y + player2.h))){
-			this.x = bx;
-			this.y = by;
-			this.theta = bt;
-			player2.cd = 100;
-	}
-	
+	this.hitCheck(Point(0, 0), Point(0, canvas.height));
+	this.hitCheck(Point(0, 0), Point(canvas.width, 0));
+	this.hitCheck(Point(canvas.width, canvas.height), Point(0, canvas.height));
+	this.hitCheck(Point(canvas.width, canvas.height), Point(canvas.width, 0));
 }
 
-// Draw everything
+// Draw everything when playing game
 var renderGame = function () {
-	if (courtsReady) {
-		ctx.drawImage(courtsImage[gameState.courtsType], 0, 0, canvas.width, canvas.height);
+	if (bgReady) {
+		ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 	}
 
 	if (player1Ready) {
@@ -432,23 +285,9 @@ var renderGame = function () {
 		ctx.drawImage(ballImage, ball.x, ball.y, ball.width, ball.height);
 	}
 	
-	ctx.fillStyle = '#404040';
-	ctx.fillRect(0, Door.y0 - 5, 10, 5);
-	ctx.fillRect(0, Door.y1, 10, 5);
-	ctx.fillRect(canvas.width - 10, Door.y0 - 5, 10, 5);
-	ctx.fillRect(canvas.width - 10, Door.y1, 10, 5);
-
-	ctx.font = 'bold 20px consolas';
-    ctx.textAlign = 'left';
-	ctx.textBaseline = 'top';
-    ctx.strokeStyle = '#DF5326';
-	ctx.strokeText('Score: ' + player1.score, 40, 30);
-	ctx.strokeText('Score: ' + player2.score, canvas.width - 120, 30);
-	
-	if (gamePause){
-        ctx.strokeText('Pause', canvas.width / 2, canvas.height / 2);
+	if (19 in keysDown){
+		alert("Pause");
 	}
-
 };
 
 var renderMainMenu = function() {
@@ -458,8 +297,7 @@ var renderMainMenu = function() {
 			mainMenuPlayButton.className = "main_menu_play";
 			mainMenuPlayButton.src = "./images/main_play.png";
 			mainMenuPlayButton.onclick = function() {
-				chooseCourts();
-				//gameState.startPlay();
+				gameState.startPlay();
 			};
 			container.appendChild(mainMenuPlayButton);
 			gameState.mainMenuPlay = true;
@@ -470,49 +308,6 @@ var renderMainMenu = function() {
 		}
 	}
 };
-
-function chooseCourts() {
-	var shadow = document.createElement("div");
-	shadow.className = "shadow";
-	container.appendChild(shadow);
-	var chooseBox = document.createElement("div");
-	chooseBox.id = "chooseCourts";
-	shadow.appendChild(chooseBox);
-	for (var i = 0; i < 4; i++) {
-		var item = document.createElement("p");
-		item.innerText = courts[i];
-		var radio = document.createElement("input");
-		radio.type = "radio";
-		radio.name = "name";
-		radio.id = "court_" + i;
-		item.appendChild(radio);
-		chooseBox.appendChild(item);
-	}
-	var img = document.createElement("img");
-	img.id = "go_ahead";
-	img.src = "./images/go_ahead.png";
-	img.onclick = function() {
-		for (var i = 0; i < 4; i++) {
-			if ($("#court_" + i).attr("checked") === "checked") {
-				gameState.courtsType = i;
-			}
-		}
-		$('.shadow').remove();
-		gameState.startPlay();
-	};
-	chooseBox.appendChild(img);
-}
-
-/*
-var drawGame = function () {
-	if (bgReady) {
-		ctx.drawImage(bgImage[0], 0, 0, canvas.width, canvas.height);
-	}
-	if (13 in keysDown){
-		gameStart = true;
-	}
-}
-*/
 
 // The main game loop
 var main = function () {
